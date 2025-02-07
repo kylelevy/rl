@@ -116,8 +116,7 @@ print("rollout, fine tuning:", rollout)
 #
 from torchrl.data import LazyMemmapStorage, ReplayBuffer
 
-buffer_scratch_dir = tempfile.TemporaryDirectory().name
-storage = LazyMemmapStorage(1000, scratch_dir=buffer_scratch_dir)
+storage = LazyMemmapStorage(1000)
 rb = ReplayBuffer(storage=storage, transform=Compose(lambda td: td.to(device), r3m))
 
 ##############################################################################

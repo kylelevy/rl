@@ -379,9 +379,6 @@ def make_model(dummy_env):
 # time must always have the same shape.
 
 
-buffer_scratch_dir = tempfile.TemporaryDirectory().name
-
-
 def get_replay_buffer(buffer_size, n_optim, batch_size, device):
     replay_buffer = TensorDictReplayBuffer(
         batch_size=batch_size,
