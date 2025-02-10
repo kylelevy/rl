@@ -1,7 +1,6 @@
 #!/bin/bash
 
-export TORCHRL_BUILD_VERSION=0.10.0
-pip install --upgrade setuptools
+export TORCHRL_BUILD_VERSION=0.7.1
 
 # Check if ARCH is set to aarch64
 ARCH=${ARCH:-}  # This sets ARCH to an empty string if it's not defined
