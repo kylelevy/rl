@@ -95,7 +95,7 @@ class ReplayBuffer:
             samples.
         prefetch (int, optional): number of next batches to be prefetched
             using multithreading. Defaults to None (no prefetching).
-        transform (Transform or Callable[[Any], Any], optional): Transform to be executed when
+        transform (Transform, optional): Transform to be executed when
             :meth:`sample` is called.
             To chain transforms use the :class:`~torchrl.envs.Compose` class.
             Transforms should be used with :class:`tensordict.TensorDict`

@@ -56,7 +56,10 @@ Using Replay Buffers
 # example:
 #
 
+# sphinx_gallery_start_ignore
 import gc
+
+# sphinx_gallery_end_ignore
 
 import tempfile
 

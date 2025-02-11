@@ -411,15 +411,12 @@ class Transform(nn.Module):
     def _call(self, next_tensordict: TensorDictBase) -> TensorDictBase:
         """Reads the input tensordict, and for the selected keys, applies the transform.
 
-        ``_call`` can be re-written whenever a modification of the output of env.step needs to be modified independently
-        of the data collected in the previous step (including actions and states).
+        For any operation that relates exclusively to the parent env (e.g. FrameSkip),
+        modify the _step method instead. :meth:`_call` should only be overwritten
+        if a modification of the input tensordict is needed.
 
-        For any operation that relates exclusively to the parent env (e.g. ``FrameSkip``),
-        modify the :meth:`~torchrl.envs.Transform._step` method instead.
-        :meth:`_call` should only be overwritten if a modification of the input tensordict is needed.
-
-        :meth:`_call` will be called by :meth:`~torchrl.envs.TransformedEnv.step` and
-        :meth:`~torchrl.envs.TransformedEnv.reset` but not during :meth:`~torchrl.envs.Transform.forward`.
+        :meth:`_call` will be called by :meth:`TransformedEnv.step` and
+        :meth:`TransformedEnv.reset`.
 
         """
         for in_key, out_key in _zip_strict(self.in_keys, self.out_keys):
@@ -474,6 +471,29 @@ class Transform(nn.Module):
             elif not self.missing_tolerance:
                 raise KeyError(f"'{in_key}' not found in tensordict {tensordict}")
         return tensordict
+
+    def _step(
+        self, tensordict: TensorDictBase, next_tensordict: TensorDictBase
+    ) -> TensorDictBase:
+        """The parent method of a transform during the ``env.step`` execution.
+
+        This method should be overwritten whenever the :meth:`_step` needs to be
+        adapted. Unlike :meth:`_call`, it is assumed that :meth:`_step`
+        will execute some operation with the parent env or that it requires
+        access to the content of the tensordict at time ``t`` and not only
+        ``t+1`` (the ``"next"`` entry in the input tensordict).
+
+        :meth:`_step` will only be called by :meth:`TransformedEnv.step` and
+        not by :meth:`TransformedEnv.reset`.
+
+        Args:
+            tensordict (TensorDictBase): data at time t
+            next_tensordict (TensorDictBase): data at time t+1
+
+        Returns: the data at t+1
+        """
+        next_tensordict = self._call(next_tensordict)
+        return next_tensordict
 
     def _inv_apply_transform(self, state: torch.Tensor) -> torch.Tensor:
         """Applies the inverse transform to a tensor or a leaf.
@@ -6170,21 +6190,11 @@ class TensorDictPrimer(Transform):
             the TensorSpec domain (or a unit Gaussian if unbounded). Otherwise a fixed value will be assumed.
             Defaults to `False`.
         default_value (:obj:`float`, Callable, Dict[NestedKey, float], Dict[NestedKey, Callable], optional): If non-random
-            filling is chosen, `default_value` will be used to populate the tensors.
-
-            - If `default_value` is a float or any other scala, all elements of the tensors will be set to that value.
-            - If it is a callable and `single_default_value=False` (default), this callable is expected to return a tensor
-              fitting the specs (ie, ``default_value()`` will be called independently for each leaf spec).
-            - If it is a callable and ``single_default_value=True``, then the callable will be called just once and it is expected
-              that the structure of its returned TensorDict instance or equivalent will match the provided specs.
-              The ``default_value`` must accept an optional `reset` keyword argument indicating which envs are to be reset.
-              The returned `TensorDict` must have as many elements as the number of envs to reset.
-
-              .. seealso:: :class:`~torchrl.envs.DataLoadingPrimer`
-
-            - Finally, if `default_value` is a dictionary of tensors or a dictionary of callables with keys matching
-              those of the specs, these will be used to generate the corresponding tensors. Defaults to `0.0`.
-
+            filling is chosen, `default_value` will be used to populate the tensors. If `default_value` is a float,
+            all elements of the tensors will be set to that value. If it is a callable, this callable is expected to
+            return a tensor fitting the specs, and it will be used to generate the tensors. Finally, if `default_value`
+            is a dictionary of tensors or a dictionary of callables with keys matching those of the specs, these will
+            be used to generate the corresponding tensors. Defaults to `0.0`.
         reset_key (NestedKey, optional): the reset key to be used as partial
             reset indicator. Must be unique. If not provided, defaults to the
             only reset key of the parent environment (if it has only one)

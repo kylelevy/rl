@@ -19,6 +19,7 @@ Recurrent DQN: Training recurrent policies
       * gym[mujoco]
       * tqdm
 """
+import tempfile
 
 import tempfile
 

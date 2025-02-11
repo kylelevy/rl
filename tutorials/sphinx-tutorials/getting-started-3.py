@@ -15,6 +15,7 @@ Get started with data collection and storage
         !pip install torchrl
 
 """
+import tempfile
 
 import tempfile
 
