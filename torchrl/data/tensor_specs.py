@@ -776,76 +776,6 @@ class TensorSpec(metaclass=abc.ABCMeta):
             self.assert_is_in(val)
         return val
 
-    def _encode_memo(
-        self,
-        val: np.ndarray | list | torch.Tensor | TensorDictBase,
-        *,
-        ignore_device: bool = False,
-    ) -> torch.Tensor | TensorDictBase:
-        funcs = self._encode_memo_dict.get(ignore_device)
-        if funcs is not None:
-            return funcs(val)
-
-        funcs = []
-        val_orig = val
-        if not isinstance(val, torch.Tensor):
-            if isinstance(val, list):
-                if len(val) == 1:
-                    # gym used to return lists of images since 0.26.0
-                    # We convert these lists in np.array or take the first element
-                    # if there is just one.
-                    # See https://github.com/pytorch/rl/pull/403/commits/73d77d033152c61d96126ccd10a2817fecd285a1
-                    funcs.append(lambda val: val[0])
-                else:
-                    funcs.append(lambda val: np.array(val))
-            val = _reduce_funcs(funcs)(val_orig)
-            if isinstance(val, np.ndarray) and not all(
-                stride > 0 for stride in val.strides
-            ):
-                funcs.append(lambda val: val.copy())
-            val = _reduce_funcs(funcs)(val_orig)
-            if not ignore_device:
-                funcs.append(
-                    lambda val: torch.as_tensor(
-                        val, device=self.device, dtype=self.dtype
-                    )
-                )
-            else:
-                funcs.append(lambda val: torch.as_tensor(val, dtype=self.dtype))
-            val = _reduce_funcs(funcs)(val_orig)
-        if val.shape != self.shape:
-            # if val.shape[-len(self.shape) :] != self.shape:
-            # option 1: add a singleton dim at the end
-            if val.shape == self.shape and self.shape[-1] == 1:
-                funcs.append(lambda val: val.unsqueeze(-1))
-            else:
-
-                def reshape(val):
-                    try:
-                        return val.reshape(self.shape)
-                    except Exception as err:
-                        raise RuntimeError(
-                            f"Shape mismatch: the value has shape {val.shape} which "
-                            f"is incompatible with the spec shape {self.shape}."
-                        ) from err
-
-                funcs.append(reshape)
-            val = _reduce_funcs(funcs)(val_orig)
-        if _CHECK_SPEC_ENCODE:
-
-            def check(val):
-                self.assert_is_in(val)
-                return val
-
-            funcs.append(check)
-        if len(funcs) == 0:
-            self._encode_memo_dict[ignore_device] = lambda x: x
-        elif len(funcs) == 1:
-            self._encode_memo_dict[ignore_device] = funcs[0]
-        else:
-            self._encode_memo_dict[ignore_device] = _reduce_funcs(funcs)
-        return self._encode_memo_dict[ignore_device](val_orig)
-
     @abc.abstractmethod
     def __eq__(self, other: Any) -> bool:
         # Implement minimal version if super() is called
@@ -2425,16 +2355,12 @@ class Bounded(TensorSpec, metaclass=_BoundedMeta):
         )
         self.encode = self._encode_eager
 
-    def _register_batch_size(self, batch_size: torch.Size | tuple):
-        # Register batch size in the space to decrease the memory footprint of the specs
-        self.space.batch_size = batch_size
-
     def index(
         self, index: INDEX_TYPING, tensor_to_index: torch.Tensor | TensorDictBase
     ) -> torch.Tensor | TensorDictBase:
         raise NotImplementedError("Indexing not implemented for Bounded.")
 
-    def enumerate(self, use_mask: bool = False) -> Any:
+    def enumerate(self) -> Any:
         raise NotImplementedError(
             f"enumerate is not implemented for spec of class {type(self).__name__}."
         )
@@ -2833,10 +2759,10 @@ class NonTensor(TensorSpec):
         raise NotImplementedError("Cannot use index with a NonTensorSpec.")
 
     def cardinality(self) -> Any:
-        raise NotImplementedError("Cannot enumerate a NonTensor spec.")
+        raise NotImplementedError("Cannot enumerate a NonTensorSpec.")
 
-    def enumerate(self, use_mask: bool = False) -> Any:
-        raise NotImplementedError("Cannot enumerate a NonTensor spec.")
+    def enumerate(self) -> Any:
+        raise NotImplementedError("Cannot enumerate a NonTensorSpec.")
 
     def to(self, dest: torch.dtype | DEVICE_TYPING) -> NonTensor:
         if isinstance(dest, torch.dtype):
@@ -3154,7 +3080,7 @@ class Unbounded(TensorSpec, metaclass=_UnboundedMeta):
     ) -> torch.Tensor | TensorDictBase:
         raise NotImplementedError("`index` is not implemented for Unbounded specs.")
 
-    def to(self, dest: torch.dtype | DEVICE_TYPING) -> Unbounded:
+    def to(self, dest: Union[torch.dtype, DEVICE_TYPING]) -> Unbounded:
         if isinstance(dest, torch.dtype):
             dest_dtype = dest
             dest_device = self.device
@@ -4327,7 +4253,7 @@ class Choice(TensorSpec):
                 .item()
             )
 
-    def enumerate(self, use_mask: bool = False) -> list[Any]:
+    def enumerate(self, use_mask: bool = False) -> List[Any]:
         return [s for choice in self._choices for s in choice.enumerate()]
 
     def _project(
@@ -4356,7 +4282,7 @@ class Choice(TensorSpec):
         """Number of choices for the spec."""
         return len(self._choices)
 
-    def to(self, dest: torch.dtype | DEVICE_TYPING) -> Choice:
+    def to(self, dest: Union[torch.dtype, DEVICE_TYPING]) -> Choice:
         return self.__class__([choice.to(dest) for choice in self._choices])
 
     def __eq__(self, other):
@@ -5207,10 +5133,7 @@ class Composite(TensorSpec):
     def _project(
         self, val: torch.Tensor | TensorDictBase
     ) -> torch.Tensor | TensorDictBase:
-        if self.data_cls is None:
-            cls = TensorDict
-        else:
-            cls = self.data_cls
+        cls = TensorDict
         return cls.from_dict(
             {k: item._project(val[k]) for k, item in self.items()},
             batch_size=self.shape,
