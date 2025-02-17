@@ -69,7 +69,6 @@ else:
 
 pytestmark = [
     pytest.mark.filterwarnings("error"),
-    pytest.mark.filterwarnings("ignore: memoized encoding is an experimental feature"),
 ]
 
 

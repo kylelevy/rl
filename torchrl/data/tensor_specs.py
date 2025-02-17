@@ -2759,10 +2759,10 @@ class NonTensor(TensorSpec):
         raise NotImplementedError("Cannot use index with a NonTensorSpec.")
 
     def cardinality(self) -> Any:
-        raise NotImplementedError("Cannot enumerate a NonTensorSpec.")
+        raise NotImplementedError("Cannot enumerate a NonTensor spec.")
 
     def enumerate(self) -> Any:
-        raise NotImplementedError("Cannot enumerate a NonTensorSpec.")
+        raise NotImplementedError("Cannot enumerate a NonTensor spec.")
 
     def to(self, dest: torch.dtype | DEVICE_TYPING) -> NonTensor:
         if isinstance(dest, torch.dtype):
