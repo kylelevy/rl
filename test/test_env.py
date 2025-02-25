@@ -1370,18 +1370,12 @@ class TestParallel:
                 )
                 _ = env_parallel.step(td)
 
-            td_reset = TensorDict(source=rand_reset(env_parallel), batch_size=[N])
-            env_parallel.reset(tensordict=td_reset)
-
-            # check that interruption occurred because of max_steps or done
-            td = env_parallel.rollout(policy=None, max_steps=T)
-            assert (
-                td.shape == torch.Size([N, T]) or td.get(("next", "done")).sum(1).any()
-            )
-        finally:
-            env_parallel.close(raise_if_closed=False)
-            # env_serial.close()  # never opened
-            env0.close(raise_if_closed=False)
+        # check that interruption occurred because of max_steps or done
+        td = env_parallel.rollout(policy=None, max_steps=T)
+        assert td.shape == torch.Size([N, T]) or td.get(("next", "done")).sum(1).any()
+        env_parallel.close()
+        # env_serial.close()  # never opened
+        env0.close()
 
     @pytest.mark.skipif(not _has_gym, reason="no gym")
     @pytest.mark.parametrize("env_name", [PENDULUM_VERSIONED])

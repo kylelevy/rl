@@ -618,7 +618,7 @@ class ConsistentDropoutModule(TensorDictModuleBase):
     Keyword Args:
         input_shape (tuple, optional): the shape of the input (non-batchted), used to generate the
             tensordict primers with :meth:`make_tensordict_primer`.
-        input_dtype (torch.dtype, optional): the dtype of the input for the primer. If none is pased,
+        input_dtype (torch.dtype, optional): the dtype of the input for the primer. If none is passed,
             ``torch.get_default_dtype`` is assumed.
 
     .. note:: To use this class within a policy, one needs the mask to be reset at reset time.
