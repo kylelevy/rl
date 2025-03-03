@@ -14,7 +14,7 @@ import os
 import re
 import warnings
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
 import torch
 
@@ -724,23 +724,6 @@ def check_env_specs(
     """
     if return_contiguous is None:
         return_contiguous = not env._has_dynamic_specs
-    if break_when_any_done == "both":
-        check_env_specs(
-            env,
-            return_contiguous=return_contiguous,
-            check_dtype=check_dtype,
-            seed=seed,
-            tensordict=tensordict,
-            break_when_any_done=True,
-        )
-        return check_env_specs(
-            env,
-            return_contiguous=return_contiguous,
-            check_dtype=check_dtype,
-            seed=seed,
-            tensordict=tensordict,
-            break_when_any_done=False,
-        )
     if seed is not None:
         device = (
             env.device if env.device is not None and env.device.type == "cuda" else None
