@@ -480,8 +480,8 @@ class EnvBase(nn.Module, metaclass=_EnvPostInit):
     def __init__(
         self,
         *,
-        device: DEVICE_TYPING | None = None,
-        batch_size: tuple | torch.Size | None = None,
+        device: DEVICE_TYPING = None,
+        batch_size: torch.Size | None = None,
         run_type_checks: bool = False,
         allow_done_after_reset: bool = False,
         spec_locked: bool = True,
@@ -873,7 +873,7 @@ class EnvBase(nn.Module, metaclass=_EnvPostInit):
     def append_transform(
         self,
         transform: Transform | Callable[[TensorDictBase], TensorDictBase],  # noqa: F821
-    ) -> torchrl.envs.TransformedEnv:  # noqa
+    ) -> EnvBase:
         """Returns a transformed environment where the callable/transform passed is applied.
 
         Args:
@@ -1241,56 +1241,6 @@ class EnvBase(nn.Module, metaclass=_EnvPostInit):
             self.full_observation_spec.keys(True, True), key=_repr_by_depth
         )
         return observation_keys
-
-    @property
-    @_cache_value
-    def _observation_keys_step_mdp(self) -> list[NestedKey]:
-        """The observation keys of an environment that are static under step_mdp (i.e. to be copied as-is during step_mdp)."""
-        observation_keys_leaves = sorted(
-            self.full_observation_spec.keys(True, True, step_mdp_static_only=True),
-            key=_repr_by_depth,
-        )
-        return observation_keys_leaves
-
-    @property
-    @_cache_value
-    def _state_keys_step_mdp(self) -> list[NestedKey]:
-        """The state keys of an environment that are static under step_mdp (i.e. to be copied as-is during step_mdp)."""
-        state_keys_leaves = sorted(
-            self.full_state_spec.keys(True, True, step_mdp_static_only=True),
-            key=_repr_by_depth,
-        )
-        return state_keys_leaves
-
-    @property
-    @_cache_value
-    def _action_keys_step_mdp(self) -> list[NestedKey]:
-        """The action keys of an environment that are static under step_mdp (i.e. to be copied as-is during step_mdp)."""
-        action_keys_leaves = sorted(
-            self.full_action_spec.keys(True, True, step_mdp_static_only=True),
-            key=_repr_by_depth,
-        )
-        return action_keys_leaves
-
-    @property
-    @_cache_value
-    def _done_keys_step_mdp(self) -> list[NestedKey]:
-        """The done keys of an environment that are static under step_mdp (i.e. to be copied as-is during step_mdp)."""
-        done_keys_leaves = sorted(
-            self.full_done_spec.keys(True, True, step_mdp_static_only=True),
-            key=_repr_by_depth,
-        )
-        return done_keys_leaves
-
-    @property
-    @_cache_value
-    def _reward_keys_step_mdp(self) -> list[NestedKey]:
-        """The reward keys of an environment that are static under step_mdp (i.e. to be copied as-is during step_mdp)."""
-        reward_keys_leaves = sorted(
-            self.full_reward_spec.keys(True, True, step_mdp_static_only=True),
-            key=_repr_by_depth,
-        )
-        return reward_keys_leaves
 
     @property
     def reward_key(self):
@@ -2968,7 +2918,7 @@ class EnvBase(nn.Module, metaclass=_EnvPostInit):
         return seed
 
     @abc.abstractmethod
-    def _set_seed(self, seed: int | None) -> None:
+    def _set_seed(self, seed: int | None):
         raise NotImplementedError
 
     def set_state(self):
